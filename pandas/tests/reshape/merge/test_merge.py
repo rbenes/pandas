@@ -140,6 +140,19 @@ class TestMerge(object):
             merge(self.left, self.left, right_on='key', on='key',
                   left_on="key")
 
+        msg = ('Can only pass argument "on" OR "left_index" and '
+               '"right_index", not a combination of both')
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.left, left_index=True, on='key')
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.left, left_index=True, on='key',
+                  right_index=True)
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.left, right_index=True, on='key')
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.left, right_index=True, on='key',
+                  left_index=True)
+
         msg = r"len\(right_on\) must equal len\(left_on\)"
         with pytest.raises(ValueError, match=msg):
             merge(self.df, self.df2, left_on=['key1'],
