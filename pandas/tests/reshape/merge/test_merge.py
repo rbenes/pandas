@@ -122,6 +122,7 @@ class TestMerge(object):
         msg = "Must pass right_on or right_index=True"
         with pytest.raises(pd.errors.MergeError, match=msg):
             merge(self.left, self.right, left_index=True)
+
         msg = "Must pass left_on or left_index=True"
         with pytest.raises(pd.errors.MergeError, match=msg):
             merge(self.left, self.right, right_index=True)
@@ -130,11 +131,33 @@ class TestMerge(object):
                ' a combination of both')
         with pytest.raises(pd.errors.MergeError, match=msg):
             merge(self.left, self.left, left_on='key', on='key')
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.left, left_on='key', on='key',
+                  right_on="key")
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.left, right_on='key', on='key')
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.left, right_on='key', on='key',
+                  left_on="key")
 
         msg = r"len\(right_on\) must equal len\(left_on\)"
         with pytest.raises(ValueError, match=msg):
             merge(self.df, self.df2, left_on=['key1'],
                   right_on=['key1', 'key2'])
+
+        msg = 'Cannot combine "left_on" with "left_index"'
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.right, left_index=True, left_on='key')
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.right, left_index=True, left_on='key',
+                  right_index=True)
+
+        msg = 'Cannot combine "right_on" with "right_index"'
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.right, right_index=True, right_on='key')
+        with pytest.raises(pd.errors.MergeError, match=msg):
+            merge(self.left, self.right, right_index=True, right_on='key',
+                  left_index=True)
 
     def test_index_and_on_parameters_confusion(self):
         msg = ("right_index parameter must be of type bool, not"
