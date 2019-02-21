@@ -1065,7 +1065,8 @@ class _MergeOperation(object):
                                  'and "right_on", not a combination of both.')
             if self.left_index or self.right_index:
                 raise MergeError('Can only pass argument "on" OR "left_index" '
-                                 'and "right_index", not a combination of both.')
+                                 'and "right_index", not a combination of '
+                                 'both.')
 
         if self.left_index:
             if self.left_on:
@@ -1075,7 +1076,8 @@ class _MergeOperation(object):
 
         if self.right_index:
             if self.right_on:
-                raise MergeError('Cannot combine "right_on" with "right_index"')
+                raise MergeError('Cannot combine "right_on" with '
+                                 '"right_index"')
             if not self.left_index and not self.left_on:
                 raise MergeError("Must pass left_on or left_index=True")
 
@@ -1087,8 +1089,8 @@ class _MergeOperation(object):
             self.left_on = self.right_on = self.on
 
         # nothing is set - use the common columns
-        elif self.left_index is False and self.right_index is False and \
-                self.left_on is None and self.right_on is None:
+        elif not self.left_index and not self.right_index and \
+                not self.left_on and not self.right_on:
             common_cols = self.left.columns.intersection(self.right.columns)
             if len(common_cols) == 0:
                 raise MergeError(
