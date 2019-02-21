@@ -1055,52 +1055,77 @@ class _MergeOperation(object):
                 self.right = self.right.assign(
                     **{name: self.right[name].astype(typ)})
 
-    def _validate_specification(self):
-        # Hm, any way to make this logic less complicated??
-        if self.on is None and self.left_on is None and self.right_on is None:
-
-            if self.left_index and self.right_index:
-                self.left_on, self.right_on = (), ()
-            elif self.left_index:
-                if self.right_on is None:
-                    raise MergeError('Must pass right_on or right_index=True')
-            elif self.right_index:
-                if self.left_on is None:
-                    raise MergeError('Must pass left_on or left_index=True')
-            else:
-                # use the common columns
-                common_cols = self.left.columns.intersection(
-                    self.right.columns)
-                if len(common_cols) == 0:
-                    raise MergeError(
-                        'No common columns to perform merge on. '
-                        'Merge options: left_on={lon}, right_on={ron}, '
-                        'left_index={lidx}, right_index={ridx}'
-                        .format(lon=self.left_on, ron=self.right_on,
-                                lidx=self.left_index, ridx=self.right_index))
-                if not common_cols.is_unique:
-                    raise MergeError("Data columns not unique: {common!r}"
-                                     .format(common=common_cols))
-                self.left_on = self.right_on = common_cols
-        elif self.on is not None:
-            if self.left_on is not None or self.right_on is not None:
+    def _check_exclusivity_of_params(self):
+        """
+        Method throws exception, if problem in exclusivity is found
+        """
+        if self.on:
+            if self.left_on or self.right_on:
                 raise MergeError('Can only pass argument "on" OR "left_on" '
                                  'and "right_on", not a combination of both.')
+            if self.left_index or self.right_index:
+                raise MergeError('Can only pass argument "on" OR "left_index" '
+                                 'and "right_index", not a combination of both.')
+
+        if self.left_index:
+            if self.left_on:
+                raise MergeError('Cannot combine "left_on" with "left_index"')
+            if not self.right_index and not self.right_on:
+                raise MergeError("Must pass right_on or right_index=True")
+
+        if self.right_index:
+            if self.right_on:
+                raise MergeError('Cannot combine "right_on" with "right_index"')
+            if not self.left_index and not self.left_on:
+                raise MergeError("Must pass left_on or left_index=True")
+
+    def _validate_specification(self):
+        self._check_exclusivity_of_params()
+
+        # on is set
+        if self.on:
             self.left_on = self.right_on = self.on
-        elif self.left_on is not None:
+
+        # nothing is set - use the common columns
+        elif self.left_index is False and self.right_index is False and \
+                self.left_on is None and self.right_on is None:
+            common_cols = self.left.columns.intersection(self.right.columns)
+            if len(common_cols) == 0:
+                raise MergeError(
+                    'No common columns to perform merge on. '
+                    'Merge options: left_on={lon}, right_on={ron}, '
+                    'left_index={lidx}, right_index={ridx}'
+                    .format(lon=self.left_on, ron=self.right_on,
+                            lidx=self.left_index, ridx=self.right_index))
+
+            if not common_cols.is_unique:
+                raise MergeError("Data columns not unique: {common!r}"
+                                 .format(common=common_cols))
+
+            self.left_on = self.right_on = common_cols
+
+        # indexes should be used
+        elif self.left_index and self.right_index:
+            self.left_on, self.right_on = (), ()
+
+        # left_on and right index
+        elif self.left_on and self.right_index:
             n = len(self.left_on)
-            if self.right_index:
-                if len(self.left_on) != self.right.index.nlevels:
-                    raise ValueError('len(left_on) must equal the number '
-                                     'of levels in the index of "right"')
-                self.right_on = [None] * n
-        elif self.right_on is not None:
+            if n != self.right.index.nlevels:
+                raise ValueError('len(left_on) must equal the number '
+                                 'of levels in the index of "right"')
+
+            self.right_on = [None] * n
+
+        # right_on and left index
+        elif self.right_on and self.left_index:
             n = len(self.right_on)
-            if self.left_index:
-                if len(self.right_on) != self.left.index.nlevels:
-                    raise ValueError('len(right_on) must equal the number '
-                                     'of levels in the index of "left"')
-                self.left_on = [None] * n
+            if n != self.left.index.nlevels:
+                raise ValueError('len(right_on) must equal the number '
+                                 'of levels in the index of "left"')
+
+            self.left_on = [None] * n
+
         if len(self.right_on) != len(self.left_on):
             raise ValueError("len(right_on) must equal len(left_on)")
 
