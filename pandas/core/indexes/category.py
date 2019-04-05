@@ -344,9 +344,10 @@ class CategoricalIndex(Index, accessor.PandasDelegate):
         # Size of the items in categories, not codes.
         return self.values.itemsize
 
-    def _wrap_setop_result(self, other, result):
+    def _wrap_setop_result(self, other, result, categories=None):
         name = get_op_result_name(self, other)
-        return self._shallow_copy(result, name=name)
+        dtype = CategoricalDtype(categories=categories) if categories else None
+        return self._shallow_copy(result, name=name, dtype=dtype)
 
     def get_values(self):
         """ return the underlying data as an ndarray """

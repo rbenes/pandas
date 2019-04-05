@@ -492,6 +492,35 @@ class Base(object):
                 with pytest.raises(TypeError, match=msg):
                     first.union([1, 2, 3])
 
+    def test_union_categoricalindex(self):
+        i1 = CategoricalIndex(["a"], ["a", "c"])
+        i2 = CategoricalIndex(["b", "c"], ["b", "c"])
+
+        result = i1.union(i2)
+        expected = CategoricalIndex(["a", "b", "c"], ["a", "c", "b"]) 
+        tm.assert_index_equal(result, expected)
+
+    def test_union_categoricalindex_repeated(self):
+        i1 = CategoricalIndex(["a", "c"], ["a", "c"])
+        i2 = CategoricalIndex(["b", "c", "c"], ["b", "c"])
+
+        result = i1.union(i2)
+        expected = CategoricalIndex(["a", "c", "b", "c"], ["a", "c", "b"]) 
+        tm.assert_index_equal(result, expected)
+
+    def test_union_categoricalindex_usage(self):
+        s1 = pd.Series([39, 6],
+                       index=pd.CategoricalIndex(['female','male']))
+        s2 = pd.Series([2, 152, 2],
+                       index=pd.CategoricalIndex(['female', 'male','unknown']))
+        result = pd.DataFrame([s1, s2])
+
+        expected_columns = CategoricalIndex(['female', 'male', 'unknown'])
+        expected = pd.DataFrame([[39.0, 6.0, None], [2.0, 152.0, 2.0]],
+                                columns=expected_columns)
+
+        tm.assert_frame_equal(result, expected)
+
     @pytest.mark.parametrize("sort", [None, False])
     def test_difference_base(self, sort):
         for name, idx in compat.iteritems(self.indices):
