@@ -2318,28 +2318,16 @@ class Index(IndexOpsMixin, PandasObject):
         else:
             rvals = other._values
 
-        def _merge_lists(left, right):
-            result = list(left)
-            value_set = set(left)
-            for x in right:
-                if x not in value_set:
-                    result.append(x)
-                else:
-                    value_set.remove(x)
-
-            return result
-
-        result_categories = None
-        if is_categorical_dtype(self) and is_categorical_dtype(other):
-            result = _merge_lists(lvals, rvals)
-            result_categories = _merge_lists(lvals.categories,
-                                             rvals.categories)
-
-        elif sort is None and self.is_monotonic and other.is_monotonic:
+        if sort is None and self.is_monotonic and other.is_monotonic:
             try:
                 result = self._outer_indexer(lvals, rvals)[0]
             except TypeError:
-                result = _merge_lists(lvals, rvals)
+                # incomparable objects
+                result = list(lvals)
+
+                # worth making this faster? a very unusual case
+                value_set = set(lvals)
+                result.extend([x for x in rvals if x not in value_set])
         else:
             indexer = self.get_indexer(other)
             indexer, = (indexer == -1).nonzero()
@@ -2361,11 +2349,7 @@ class Index(IndexOpsMixin, PandasObject):
                                   RuntimeWarning, stacklevel=3)
 
         # for subclasses
-        if result_categories:
-            return self._wrap_setop_result(other, result,
-                                           categories=result_categories)
-        else:
-            return self._wrap_setop_result(other, result)
+        return self._wrap_setop_result(other, result)
 
     def _wrap_setop_result(self, other, result):
         return self._constructor(result, name=get_op_result_name(self, other))

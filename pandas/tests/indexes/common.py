@@ -492,21 +492,32 @@ class Base(object):
                 with pytest.raises(TypeError, match=msg):
                     first.union([1, 2, 3])
 
-    def test_union_categoricalindex(self):
-        i1 = CategoricalIndex(["a"], ["a", "c"])
-        i2 = CategoricalIndex(["b", "c"], ["b", "c"])
+    @pytest.mark.parametrize(
+        "in_1, in_1_categ, in_2, in_2_categ, sorted, res, res_categ", [
+        (["a"], ["a", "c"], ["b", "c"], ["b", "c"], False,
+         ["a", "b", "c"], ["a", "c", "b"]),
+        (["a", "c"], ["a", "c"], ["b", "c", "c"], ["b", "c"], False,
+         ["a", "c", "b", "c"], ["a", "c", "b"]),
+        (["a", "c"], ["a", "c"], ["b", "c", "c"], ["b", "c"], None,
+         ["a", "b", "c", "c"], ["a", "b", "c"]),
+        ([2, 3], [2, 3], [1, 2, 4, 4, 4], [1, 2, 4], None,
+         [1, 2, 3, 4, 4, 4], [1, 2, 3, 4]),
+        ])
+    def test_union_categoricalindex(self, in_1, in_1_categ, in_2, in_2_categ,
+                                    sorted, res, res_categ):
+        i1 = CategoricalIndex(in_1, in_1_categ)
+        i2 = CategoricalIndex(in_2, in_2_categ)
 
-        result = i1.union(i2)
-        expected = CategoricalIndex(["a", "b", "c"], ["a", "c", "b"]) 
+        result = i1.union(i2, sort=sorted)
+        expected = CategoricalIndex(res, res_categ) 
         tm.assert_index_equal(result, expected)
 
-    def test_union_categoricalindex_repeated(self):
-        i1 = CategoricalIndex(["a", "c"], ["a", "c"])
-        i2 = CategoricalIndex(["b", "c", "c"], ["b", "c"])
-
-        result = i1.union(i2)
-        expected = CategoricalIndex(["a", "c", "b", "c"], ["a", "c", "b"]) 
-        tm.assert_index_equal(result, expected)
+        # # compare to the same behavior as normal index
+        # i1 = Index(in_1)
+        # i2 = Index(in_2)
+        # result = i1.union(i2, sort=sorted)
+        # expected = Index(res) 
+        # tm.assert_index_equal(result, expected)
 
     def test_union_categoricalindex_usage(self):
         s1 = pd.Series([39, 6],

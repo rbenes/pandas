@@ -25,6 +25,7 @@ import pandas.core.indexes.base as ibase
 from pandas.core.indexes.base import Index, _index_shared_docs
 import pandas.core.missing as missing
 from pandas.core.ops import get_op_result_name
+import pandas.core.sorting as sorting
 
 _index_doc_kwargs = dict(ibase._index_doc_kwargs)
 _index_doc_kwargs.update(dict(target_klass='CategoricalIndex'))
@@ -282,6 +283,56 @@ class CategoricalIndex(Index, accessor.PandasDelegate):
 
         return other
 
+    def union(self, other, sort=None):
+        self._validate_sort_keyword(sort)
+        self._assert_can_do_setop(other)
+
+        if len(other) == 0 or self.equals(other):
+            return self._get_reconciled_name_object(other)
+
+        if len(self) == 0:
+            return other._get_reconciled_name_object(self)
+
+        def _union_lists(left, right):
+            result = list(left)
+            value_set = set(left)
+            for x in right:
+                if x not in value_set:
+                    result.append(x)
+                else:
+                    value_set.remove(x)
+
+            return result
+
+        lvals = self._values
+        rvals = other._values
+
+        # try:
+        #     result = self._outer_indexer(np.array(lvals),
+        #                                  np.array(rvals))[0]
+        #     result_categ = self._outer_indexer(np.array(lvals.categories),
+        #                                        np.array(rvals.categories))[0]
+
+        #     result = result.tolist()
+        #     result_categ = result_categ.tolist()
+        # except TypeError:
+        # incomparable objects
+        result = _union_lists(lvals, rvals)
+        result_categ = _union_lists(lvals.categories,
+                                    rvals.categories)
+
+        if sort is None:
+            try:
+                result = sorting.safe_sort(result)
+                result_categ = sorting.safe_sort(result_categ)
+            except TypeError as e:
+                warnings.warn("{}, sort order is undefined for "
+                              "incomparable objects".format(e),
+                              RuntimeWarning, stacklevel=3)
+
+        return self._wrap_setop_result(other, result,
+                                       categories=result_categ)
+
     def equals(self, other):
         """
         Determine if two CategorialIndex objects contain the same elements.
@@ -346,7 +397,12 @@ class CategoricalIndex(Index, accessor.PandasDelegate):
 
     def _wrap_setop_result(self, other, result, categories=None):
         name = get_op_result_name(self, other)
-        dtype = CategoricalDtype(categories=categories) if categories else None
+        
+        if categories is None:
+            dtype = None
+        else:
+            dtype = CategoricalDtype(categories=categories,
+                                     ordered=self.ordered)
         return self._shallow_copy(result, name=name, dtype=dtype)
 
     def get_values(self):
